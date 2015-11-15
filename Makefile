@@ -2,9 +2,9 @@ CC = gcc
 CFLAGS = -Wall -W -D_FILE_OFFSET_BITS=64
 
 #File
-SOURCES = hello.c
-OBJECTS = hello.o
-TARGET = hello
+SOURCES = fs.c
+OBJECTS = fs.o
+TARGET = fs
 
 
 # build rule

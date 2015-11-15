@@ -13,4 +13,4 @@ all :
 	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET) -lfuse
 
 clean :
-	-rf -f $(OBJECTS) $(TARGET)
+	-rm -f $(OBJECTS) $(TARGET)

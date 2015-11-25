@@ -35,7 +35,7 @@ static inode* find_node(inode* parent, const char* name){
 	inode*	node;	//temporary inode
 
 	//find the node in child list.
-	for(node = parent->child; 
+	for(node = parent->child;
 		(node != NULL) && strcmp(node->name, name); node = node->next);
 	return node;
 }
@@ -63,7 +63,7 @@ static inode* find_path(const char* path)
 		return NULL;
 	}
 	// find node down through directories
-	for( ; (tmp = strtok(NULL, "/")) && node != NULL; 
+	for( ; (tmp = strtok(NULL, "/")) && node != NULL;
 		 node = find_node(node, tmp));
 
 	free(temp_path);
@@ -77,7 +77,7 @@ static char* find_parent(const char* path) {
 	char*	parent = (char*)calloc(i, sizeof(char));
 
 	strcpy(parent, path);
-	// until it comes out '/', 
+	// until it comes out '/',
 	// check string from the end of the path and delete characters one by one
 	for(  ; parent[i] != '/' && i > 0 ; --i )
 		parent[i] = '\0';
@@ -120,7 +120,7 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
 	(void) offset;
 	(void) fi;
-  
+
 	inode* node;
 	puts("hello readdir ");
 	// find current directory node
@@ -132,10 +132,10 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	filler(buf, "..", NULL, 0);
 
 	// fill all names of nodes in the directory
-	for (node = node->child; node != NULL; node = node->next) 
+	for (node = node->child; node != NULL; node = node->next)
 		filler(buf, node->name, NULL, 0);
-	
-	puts("hello readdir end");  
+
+	puts("hello readdir end");
 	return 0;
 }
 
@@ -151,7 +151,7 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 	if (node == NULL)
 		return -ENOENT;
 
-	puts("hello open end");  
+	puts("hello open end");
 	return 0;
 }
 
@@ -172,7 +172,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 	// len is size of the node
 	len = node->STAT.st_size;
 	// read from the offset
-	if (offset < len) 
+	if (offset < len)
 	{
 		// if the size that we want to read is bigger that size of the node
 		if (offset + size > len)
@@ -183,7 +183,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 	// data to read is not left
 	else
 		size = 0;
-	puts("hello read end");  
+	puts("hello read end");
 	return size;
 }
 
@@ -239,7 +239,7 @@ static int hello_mknode(const char * path, mode_t mode)
 	char*	parent_path = find_parent(path);
 	int len = strlen(parent_path);
 	int i;
-	
+
 	puts("hello mknod");
 	// find parent node from path
 	parent = find_path(parent_path);
@@ -280,7 +280,7 @@ static int hello_mknode(const char * path, mode_t mode)
 	// if parent node has already a child node
 	else {
 		puts("not a first child");
-		for(last_node = parent->child; last_node->next != NULL; 
+		for(last_node = parent->child; last_node->next != NULL;
 			last_node = last_node->next);
 		last_node->next = node;
 		node->previous = last_node;
@@ -305,14 +305,14 @@ static int hello_mkdir(const char * path, mode_t mode)
 // int realese_link(inode* node)
 // cut the link of the node
 int realese_link(inode* node)
-{   
+{
 	// safe check
 	if (!node || node->STAT.st_nlink == 0)
 		return -EIO;
-	// if node is root or 
+	// if node is root or
 	// node is directory file and it's not empty
 	if (node == root_node ||
-		((node->STAT.st_mode & S_IFDIR) && ( node->child )) ) 
+		((node->STAT.st_mode & S_IFDIR) && ( node->child )) )
 		return -EISDIR;
 	// if node is first child of the parent
 	if(node == node->parent->child){
@@ -323,7 +323,7 @@ int realese_link(inode* node)
 			free(node->data);
 		free(node->name);
 		free(node);
-	} 
+	}
 	// if node is not first child of the parent
 	else {
 		node->previous->next = node->next;
@@ -419,7 +419,7 @@ static struct fuse_operations hello_oper = {
 	.rmdir 			= hello_rmdir,
 	.utimens 		= hello_utimens
 };
-  
+
 int main(int argc, char *argv[]) {
 	return fuse_main(argc, argv, &hello_oper, NULL);
 }

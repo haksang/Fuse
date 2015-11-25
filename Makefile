@@ -10,7 +10,7 @@ TARGET = fs
 # build rule
 .PHONY : all clean
 all :
-	$(CC) $(WARN) $(CFLAGS) $(SOURCES) -o $(TARGET) -lfuse
+	$(CC) $(WARN) $(CFLAGS) $(SOURCES) -o $(TARGET)
 
 clean :
 	-rm -f $(OBJECTS) $(TARGET)

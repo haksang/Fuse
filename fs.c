@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-struct _inode {
+struct inode {
 		char name[14];
 		unsigned char data[128];
 		struct stat st;
@@ -20,7 +20,7 @@ struct _inode {
 		struct	inode	*before;
 };
 
-static _inode root_node;
+static inode root_node;
 
 static void *hello_init(struct fuse_conn_info *conn)
 {
@@ -31,10 +31,10 @@ static void *hello_init(struct fuse_conn_info *conn)
 	time_t current_time = time(NULL);
 
 	root_node = (inode *) calloc(1, sizeof(inode));
-	root_node->parent = NULL;
-	root_node->child = NULL;
-	root_node->next = NULL;
-	root_node->before = NULL;
+	root_node.inode->parent = NULL;
+	root_node.inode->child = NULL;
+	root_node.inode->next = NULL;
+	root_node.inode->before = NULL;
 
 	strcpy(root_node.name, "/");
 

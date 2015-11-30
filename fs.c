@@ -1,4 +1,4 @@
-#define FUSE_USE_VERSION 30
+#define FUSE_USE_VERSION 26
 
 #include <fuse.h>
 #include <stdio.h>
@@ -9,22 +9,42 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-typedef struct inode {
-		struct stat STAT;
-		char*	name;
-		void*	data;
+struct _inode {
+		char name[14];
+		unsigned char data[128];
+		struct stat st;
 
 		struct	inode	*parent;
 		struct	inode	*child;
 		struct	inode	*next;
 		struct	inode	*before;
-} inode;
+};
 
-static inode *root_node;
+static _inode root_node;
 
 static void *hello_init(struct fuse_conn_info *conn)
 {
 	puts("Hello_init!!");
+
+	(void) conn;
+
+	time_t current_time = time(NULL);
+
+	root_node = (inode *) calloc(1, sizeof(inode));
+	root_node->parent = NULL;
+	root_node->child = NULL;
+	root_node->next = NULL;
+	root_node->before = NULL;
+
+	strcpy(root_node.name, "/");
+
+	root_node.st.st_mode = (S_IFDIR | 0755);
+	root_node.st.st_nlink = 2;
+	root_node.st.st_mtine = current_time;
+	root_node.st.st_ctime = current_time;
+	root_node.st.st_atime = current_time;
+	
+	return NULL;
 }
 static int hello_getattr(const char *path, struct stat *stbuf)
 {
@@ -39,12 +59,12 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 	else {
 		puts("file exist");
 		memset(stbuf, 0, sizeof(struct stat));
-		stbuf->st_mode = node->STAT.st_mode; /* protection */
-		stbuf->st_nlink = node->STAT.st_nlink; /* number of hard links */
-		stbuf->st_size = node->STAT.st_size; /* totla size, in bytes */
-		stbuf->st_atime = node->STAT.st_atime; /* time of last access */
-		stbuf->st_ctime = node->STAT.st_ctime; /* time of last status change */
-		stbuf->st_mtime = node->STAT.st_mtime; /* time of last modificaiton */
+		stbuf->st_mode = node->st.st_mode; /* protection */
+		stbuf->st_nlink = node->st.st_nlink; /* number of hard links */
+		stbuf->st_size = node->st.st_size; /* totla size, in bytes */
+		stbuf->st_atime = node->st.st_atime; /* time of last access */
+		stbuf->st_ctime = node->st.st_ctime; /* time of last status change */
+		stbuf->st_mtime = node->st.st_mtime; /* time of last modificaiton */
 	}
 	return 0;
 }
@@ -52,6 +72,18 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi)
 {
+	(void) offset;
+	(void) fi;
+	inode *node;
+	node = root_node;
+
+		if ( node == NULL ) {
+				return -ENOENT;
+		}
+
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
+
 	puts("Hello_readdir");
   return 0;
 }

@@ -37,14 +37,13 @@ static void *hello_init(struct fuse_conn_info *conn)
 	root_node->before = NULL;
 
 	strcpy(root_node->name, "/");
-
 	root_node->st.st_mode = (S_IFDIR | 0755);
 	root_node->st.st_nlink = 2;
 	root_node->st.st_mtime = current_time;
 	root_node->st.st_ctime = current_time;
-	root_node->st.st_atime = current_time
+	root_node->st.st_atime = current_time;
 
-	printf("Hello_init end")
+	printf("Hello_init end");
 
 	return NULL;
 }
@@ -138,6 +137,16 @@ static int hello_unlink(const char *path)
 {
  	printf("hello_unlink");
 	printf("hello_unlink end");
+}
+static int hello_truncate(const char* path, off_t s)
+{
+		printf("hello_truncate");
+		printf("hello_truncate end");
+}
+static int hello_utimens(const char *path, const struct timespec ts[2])
+{
+	printf("hello_utimens");
+	printf("hello_utimens end");
 }
 static struct fuse_operations hello_oper = {
 		.init		= hello_init,

@@ -1,6 +1,7 @@
 
 #define FUSE_USE_VERSION 26
-#define PATH_LENGTH 100
+#define PATH_MAX 200
+
 #include <fuse.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,37 +12,74 @@
 #include <errno.h>
 #include <sys/time.h>
 
+char *mount_path;
+
+static void makepath(char fpath[PATH_MAX], const char *path)
+{
+  strcpy(fpath, mount_path);
+  strncat(fpath, path, PATH_MAX);
+}
+
+static void* hello_init(struct fuse_conn_info *conn)
+{
+	(void) conn;
+  char buf[255];
+  getcwd(buf,255);
+  int i = strlen(buf);
+  mount_path = (char*)calloc(i, sizeof(char));
+  strcat(mount_path,buf);
+  puts(mount_path);
+
+	return NULL;
+}
+
 static int hello_getattr(const char *path, struct stat *stbuf)
 {
-  char _path[PATH_LENGTH];
-	int res;
-	res = lstat(path, stbuf);
-	if (res == -1)
-		return -errno;
+  puts("hello_getattr");
+  int res;
 
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
+  printf("getattr : fpath is %s\n",fpath);
+
+	res = lstat(fpath, stbuf);
+
+	if (res != 0)
+		return -errno;
+  puts("hello_getattr end");
 	return 0;
 }
 
 static int hello_access(const char *path, int mask)
 {
-	int res;
+  puts("hello_access");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = access(path, mask);
-	if (res == -1)
+  printf("access : fpath is %s\n",fpath);
+
+  int res;
+	res = access(fpath, mask);
+	if (res < 0)
 		return -errno;
 
+  puts("hello_access end");
 	return 0;
 }
 
 static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
+  puts("hello_readdir");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
+  printf("readdir : fpath is %s\n",fpath);
 	DIR *dp;
 	struct dirent *de;
 	(void) offset;
 	(void) fi;
 
-	dp = opendir(path);
+  dp = opendir(fpath);
 	if (dp == NULL)
 		return -errno;
 
@@ -55,133 +93,143 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	}
 
 	closedir(dp);
+  puts("hello_readdir end");
 	return 0;
 }
 
 static int hello_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-	int res;
+  puts("hello_mknod");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
+	int res;
 	if (S_ISREG(mode)) {
-		res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
+		res = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
 		if (res >= 0)
 			res = close(res);
 	} else if (S_ISFIFO(mode))
-		res = mkfifo(path, mode);
+		res = mkfifo(fpath, mode);
 	else
-		res = mknod(path, mode, rdev);
+		res = mknod(fpath, mode, rdev);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_mknod end");
 	return 0;
 }
 
 static int hello_mkdir(const char *path, mode_t mode)
 {
-	int res;
+  puts("hello_mkdir");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = mkdir(path, mode);
+	int res;
+	res = mkdir(fpath, mode);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_mkdir end");
 	return 0;
 }
 
 static int hello_unlink(const char *path)
 {
-	int res;
+  puts("hello_unlink");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = unlink(path);
+	int res;
+	res = unlink(fpath);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_unlink end");
 	return 0;
 }
 
 static int hello_rmdir(const char *path)
 {
-	int res;
+  puts("hello_rmdir");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = rmdir(path);
+	int res;
+	res = rmdir(fpath);
 	if (res == -1)
 		return -errno;
-
-	return 0;
-}
-static int hello_link(const char *from, const char *to)
-{
-	int res;
-
-	res = link(from, to);
-	if (res == -1)
-		return -errno;
-
+  puts("hello_rmdir end");
 	return 0;
 }
 static int hello_chmod(const char *path, mode_t mode)
 {
-	int res;
+  puts("hello_chmod");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = chmod(path, mode);
+	int res;
+	res = chmod(fpath, mode);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_chmod end");
 	return 0;
 }
 
 static int hello_chown(const char *path, uid_t uid, gid_t gid)
 {
-	int res;
+  puts("hello_chown");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = lchown(path, uid, gid);
+	int res;
+	res = lchown(fpath, uid, gid);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_chown end");
 	return 0;
 }
 
 static int hello_truncate(const char *path, off_t size)
 {
-	int res;
+  puts("hello_truncate");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = truncate(path, size);
+	int res;
+	res = truncate(fpath, size);
 	if (res == -1)
 		return -errno;
-
+  puts("hello_truncate end");
 	return 0;
 }
 
-static int hello_utimens(const char *path, const struct timespec ts[2])
-{
-	int res;
-
-	res = utimensat(0, path, ts, AT_SYMLINK_NOFOLLOW);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
 
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
-	int res;
+  puts("hello_open");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
 
-	res = open(path, fi->flags);
+	int res;
+	res = open(fpath, fi->flags);
 	if (res == -1)
 		return -errno;
 
 	close(res);
+  puts("hello_open end");
 	return 0;
 }
 
 static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
+  puts("hello_read");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
+
 	int fd;
 	int res;
 
 	(void) fi;
-	fd = open(path, O_RDONLY);
+	fd = open(fpath, O_RDONLY);
 	if (fd == -1)
 		return -errno;
 
@@ -190,17 +238,22 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 		res = -errno;
 
 	close(fd);
+  puts("hello_read end");
 	return res;
 }
 
 static int hello_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
+  puts("hello_write");
+  char fpath[PATH_MAX];
+  makepath(fpath,path);
+
 	int fd;
 	int res;
 
 	(void) fi;
-	fd = open(path, O_WRONLY);
+	fd = open(fpath, O_WRONLY);
 	if (fd == -1)
 		return -errno;
 
@@ -209,22 +262,22 @@ static int hello_write(const char *path, const char *buf, size_t size,
 		res = -errno;
 
 	close(fd);
+  puts("hello_write end");
 	return res;
 }
 
 static struct fuse_operations hello_oper = {
+  .init 		= hello_init,
 	.getattr	= hello_getattr,
 	.access		= hello_access,
 	.readdir	= hello_readdir,
 	.mknod		= hello_mknod,
 	.mkdir		= hello_mkdir,
 	.unlink		= hello_unlink,
-  .link     = hello_link,
 	.rmdir		= hello_rmdir,
 	.chmod		= hello_chmod,
 	.chown		= hello_chown,
 	.truncate	= hello_truncate,
-	.utimens	= hello_utimens,
 	.open		= hello_open,
 	.read		= hello_read,
 	.write		= hello_write,

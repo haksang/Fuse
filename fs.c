@@ -21,6 +21,46 @@ typedef struct _inode {
 } inode;
 
 static inode* root_node;
+tatic inode* find_node(inode* parent, const char* name){
+	inode*	node;
+	for(node = parent->child; (node != NULL) && strcmp(node->name, name); node = node->next);
+	return node;
+}
+
+static inode* find_path(const char* path)
+{
+	char* tmp;
+	char* temp_path;
+	inode* node = root_node;
+
+	if(strcmp(path, "/") == 0)
+		return node;
+
+	temp_path = (char*)calloc(strlen(path),sizeof(char));
+	strcpy(temp_path, path);
+	tmp = strtok(temp_path, "/");
+
+	if((node = find_node(node, tmp)) == NULL) {
+		free(temp_path);
+		return NULL;
+	}
+	for( ; (tmp = strtok(NULL, "/")) && node != NULL;
+		 node = find_node(node, tmp));
+
+	free(temp_path);
+	return node;
+}
+
+static char* find_parent(const char* path) {
+	int 	i = strlen(path);
+	char*	parent = (char*)calloc(i, sizeof(char));
+
+	strcpy(parent, path);
+	for(  ; parent[i] != '/' && i > 0 ; --i )
+		parent[i] = '\0';
+
+	return parent;
+}
 
 static void *hello_init(struct fuse_conn_info *conn)
 {
@@ -51,7 +91,7 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 {
 	printf("Hello_Getattr");
 	inode *node;
-	node = root_node;
+	node = find_path(path);
 
 	if ( node == NULL) {
 		printf("file not exist");
@@ -78,7 +118,7 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	(void) offset;
 	(void) fi;
 	inode *node;
-	node = root_node;
+	node = find_path(path);
 
 		if ( node == NULL ) {
 				return -ENOENT;
@@ -86,7 +126,8 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	filler(buf,node->name, NULL, 0);
+	for (node = node->child; node != NULL; node = node->next)
+		filler(buf, node->name, NULL, 0);
 
 	printf("Hello_readdir end");
   return 0;

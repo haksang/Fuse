@@ -1,5 +1,5 @@
 #define FUSE_USE_VERSION 26
-#define MAX_NAME_LEN 200
+#define MAX_NAME_LEN 255
 
 #include <fuse.h>
 #include <stdio.h>
@@ -11,6 +11,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+#include "log.h"
+#include "params.h"
 
 typedef struct _inode {
 		char 		*name;
@@ -24,7 +27,7 @@ typedef struct _inode {
 } inode;
 
 static inode* root_node;
-
+/* find node in path */
 static inode* find_node(inode* parent, const char* name){
 	inode*	node = parent->child;
 	while(node != NULL && strcmp(node->name, name)) {
@@ -73,6 +76,7 @@ static char* find_parent(const char* path) {
 	return parent;
 }
 
+/* fuse operation */
 static void *hello_init(struct fuse_conn_info *conn)
 {
 	(void) conn;
@@ -103,7 +107,6 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 	printf("Hello_Getattr");
 
 	node = find_path(path);
-
 	if ( node == NULL) {
 		printf("file not exist");
 		return -ENOENT;
@@ -205,13 +208,10 @@ static int hello_write(const char *path, const char *buf, size_t size,
 	 		node->data = tmp;
 	 		node->st.st_size += size;
 	 	}
-	 	else{
-	 		free(tmp);
-	 		return -EFBIG;
-	 }
-	 printf("hello_write end");
-	 return size;
 	}
+	memcpy(node->data + offset, buf, size);
+	printf("hello_write end");
+	return size;
 }
 static int hello_mkdir(const char *path, mode_t mode)
 {
@@ -225,7 +225,6 @@ static int hello_mkdir(const char *path, mode_t mode)
 	int i;
 
 	printf("hello_mkdir");
-
 
 	parent = find_path(parent_path);
 
@@ -310,7 +309,6 @@ static int hello_mknod(const char *path, mode_t mode)
 
 		printf("hello_mknod");
 
-
 		parent = find_path(parent_path);
 
 		if (parent == NULL)
@@ -329,7 +327,7 @@ static int hello_mknod(const char *path, mode_t mode)
 		node->next = NULL;
 
 		node->name = (char*)calloc(MAX_NAME_LEN, sizeof(char));
-		
+
 		for( i = len ; path[i] != '\0' ; i++ )
 			node->name[i-len] = path[i];
 		node->name[i-len] = '\0';
@@ -418,5 +416,6 @@ static struct fuse_operations hello_oper = {
 
 int main(int argc, char *argv[])
 {
+	umask(0);
 	return fuse_main(argc, argv, &hello_oper, NULL);
 }

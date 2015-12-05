@@ -21,7 +21,7 @@ typedef struct _inode {
 } inode;
 
 static inode* root_node;
-tatic inode* find_node(inode* parent, const char* name){
+static inode* find_node(inode* parent, const char* name){
 	inode*	node;
 	for(node = parent->child; (node != NULL) && strcmp(node->name, name); node = node->next);
 	return node;
@@ -152,6 +152,21 @@ static int hello_write(const char *path, const char *buf, size_t size,
 			off_t offset, struct fuse_file_info *fi)
 {
 	 printf("hello_write");
+	 size_t len;
+	 inode* node;
+	 (void) fi;
+	 puts("hello read");
+	 node = find_path(path);
+	 if(node == NULL)
+	 	return -ENOENT;
+	 len = node->STAT.st_size;
+	 if (offset < len) {
+		 if (offset + size > len)
+		 	size = len - offset;
+	 	memcpy(buf, node->data + offset, size);
+	 }
+	 else
+	 	size = 0;
 	 printf("hello_write end");
 	 return size;
 }

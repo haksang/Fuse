@@ -20,7 +20,50 @@ typedef struct _inode {
 		struct	inode	*before;
 } inode;
 
-static inode* root_node;
+static inode *root_node;
+static inode *sub_node;
+
+static inode *find_node(inode* parent, const char* name){
+	inode *node;
+	for(node = parent->child; (node != NULL) && strcmp(node->name, name); node = node->next);
+	return node;
+}
+
+static inode *find_path(const char* path)
+{
+	char *tmp;
+	char *temp_path;
+	inode *node;
+	node = root_node;
+
+	if(strcmp(path, "/") == 0)
+		return node;
+
+	temp_path = (char *)calloc(strlen(path),sizeof(char));
+	strcpy(temp_path, path);
+	tmp = strtok(temp_path, "/");
+
+	if((node = find_node(node, tmp)) == NULL) {
+		free(temp_path);
+		return NULL;
+	}
+	for( ; (tmp = strtok(NULL, "/")) && node != NULL;
+		 node = find_node(node, tmp));
+
+	free(temp_path);
+	return node;
+}
+
+static char *find_parent(const char* path) {
+	int 	i = strlen(path);
+	char *parent = (char*)calloc(i, sizeof(char));
+
+	strcpy(parent, path);
+	for(  ; parent[i] != '/' && i > 0 ; --i )
+		parent[i] = '\0';
+
+	return parent;
+}
 
 static void *hello_init(struct fuse_conn_info *conn)
 {
@@ -95,6 +138,10 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
 	printf("hello_open");
+	inode *node;
+	node = root_node;
+	if (node == NULL)
+		return -ENOENT;
 	printf("hello_open end");
 	return 0;
 }
@@ -102,7 +149,23 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
+	(void) fi;
 	printf("hello_read");
+	inode *node;
+	node = root_node;
+	size_t length;
+
+	if(node == NULL)
+		return -ENOENT;
+
+	length = node->st.st_size;
+	if (offset < length) {
+		if (offset + size > length)
+			size = length - offset;
+		memcpy(buf, node->data + offset, size);
+	}
+	else
+		size = 0;
 	printf("hello_read end");
   return size;
 }
@@ -111,41 +174,90 @@ static int hello_write(const char *path, const char *buf, size_t size,
 			off_t offset, struct fuse_file_info *fi)
 {
 	 printf("hello_write");
-	 printf("hello_write end");
-	 return size;
+	 inode *node;
+	 void *tmp;
+	 (void) fi;
+	 if(node == NULL)
+	 	return -ENOENT;
+	printf("hello_write end");
+	return size;
 }
 
 static int hello_mkdir(const char *path, mode_t mode)
 {
- 	printf("hello_mkdir");
+	printf("hello_mkdir");
+
+	time_t	current_time = time(NULL);
+	inode *node;
+	node = root_node;
+	node->st.st_nlink = 2;
+	node->st.st_mode = mode | S_IFDIR;
+	node->st.st_mtime = current_time;
+	node->st.st_ctime = current_time;
+	node->st.st_atime = current_time;
+
 	printf("hello_mkdir end");
+	return 0;
 }
 
 static int hello_rmdir(const char *path)
 {
  	printf("hello_rmdir");
+	inode *node;
+	node = root_node;
+	if(node==NULL)
+		return -ENOENT;
+	if (((node->st.st_mode & S_IFDIR) && ( node->child )))
+		return -EISDIR;
+
+	free(node);
 	printf("hello_rmdir end");
+	return 0;
 }
 
 static int hello_mknod(const char *path, mode_t mode)
 {
  	printf("hello_mknod");
+	time_t	current_time = time(NULL);
+	inode* 	node;
+	node = root_node;
+	node->st.st_nlink = 1;
+	node->st.st_mode = mode | S_IFREG;
+	node->st.st_mtime = current_time;
+	node->st.st_ctime = current_time;
+	node->st.st_atime = current_time;
+
 	printf("hello_mknod end");
+	return 0;
 }
 
 static int hello_unlink(const char *path)
 {
  	printf("hello_unlink");
+	inode *node;
+	node = root_node;
+	if(node==NULL)
+		return -ENOENT;
+	free(node);
 	printf("hello_unlink end");
+	return 0;
 }
 static int hello_truncate(const char* path, off_t s)
 {
 		printf("hello_truncate");
 		printf("hello_truncate end");
+		return 0;
 }
 static int hello_utimens(const char *path, const struct timespec ts[2])
 {
 	printf("hello_utimens");
+	inode *node;
+	node = root_node;
+	time_t current_time = time(NULL);
+	if(node == NULL)
+		return -ENOENT;
+	node->st.st_mtime = current_time;
+	node->st.st_atime = current_time;
 	printf("hello_utimens end");
 }
 static struct fuse_operations hello_oper = {

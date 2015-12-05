@@ -1,4 +1,5 @@
 #define FUSE_USE_VERSION 30
+#define MAX_NAME_LEN 200
 
 #include <fuse.h>
 #include <stdio.h>
@@ -10,17 +11,18 @@
 #include <unistd.h>
 
 typedef struct _inode {
-		char name[14];
-		unsigned char data[128];
+		char 		*name;
+		void		*data;
 		struct stat st;
 
-		struct	inode	*parent;
-		struct	inode	*child;
-		struct	inode	*next;
-		struct	inode	*before;
+		struct	_inode	*parent;
+		struct	_inode	*child;
+		struct	_inode	*next;
+		struct	_inode	*before;
 } inode;
 
 static inode* root_node;
+
 static inode* find_node(inode* parent, const char* name){
 	inode*	node;
 	for(node = parent->child; (node != NULL) && strcmp(node->name, name); node = node->next);
@@ -64,11 +66,12 @@ static char* find_parent(const char* path) {
 
 static void *hello_init(struct fuse_conn_info *conn)
 {
-	printf("Hello_init");
 
 	(void) conn;
 
 	time_t current_time = time(NULL);
+
+	printf("Hello_init");
 
 	root_node = (inode *) calloc(1, sizeof(inode));
 	root_node->parent = NULL;
@@ -76,21 +79,23 @@ static void *hello_init(struct fuse_conn_info *conn)
 	root_node->next = NULL;
 	root_node->before = NULL;
 
-	strcpy(root_node->name, "/");
+
 	root_node->st.st_mode = (S_IFDIR | 0755);
 	root_node->st.st_nlink = 2;
 	root_node->st.st_mtime = current_time;
 	root_node->st.st_ctime = current_time;
 	root_node->st.st_atime = current_time;
-
+	root_node->name = "";
 	printf("Hello_init end");
 
 	return NULL;
 }
 static int hello_getattr(const char *path, struct stat *stbuf)
 {
-	printf("Hello_Getattr");
 	inode *node;
+
+	printf("Hello_Getattr");
+
 	node = find_path(path);
 
 	if ( node == NULL) {
@@ -114,10 +119,12 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi)
 {
-	printf("Hello_readdir");
 	(void) offset;
 	(void) fi;
 	inode *node;
+
+	printf("Hello_readdir");
+
 	node = find_path(path);
 
 		if ( node == NULL ) {
@@ -143,56 +150,218 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
+	size_t len;
+	(void) fi;
+	inode* node;
+
 	printf("hello_read");
+
+	node = find_path(path);
+	if(node == NULL)
+		return -ENOENT;
+	len = node->st.st_size;
+	if (offset < len)
+	{
+		if (offset + size > len)
+			size = len - offset;
+		memcpy(buf, node->data + offset, size);
+	}
+	else
+		size = 0;
 	printf("hello_read end");
   return size;
 }
 
 static int hello_write(const char *path, const char *buf, size_t size,
-			off_t offset, struct fuse_file_info *fi)
+	 										 off_t offset, struct fuse_file_info *fi)
 {
-	 printf("hello_write");
-	 size_t len;
 	 inode* node;
+	 void* tmp;
 	 (void) fi;
-	 puts("hello read");
+
+	 printf("hello_write");
+
 	 node = find_path(path);
+
 	 if(node == NULL)
 	 	return -ENOENT;
-	 len = node->STAT.st_size;
-	 if (offset < len) {
-		 if (offset + size > len)
-		 	size = len - offset;
-	 	memcpy(buf, node->data + offset, size);
+
+	 if (size + offset > node->st.st_size)
+	 {
+
+	 	tmp = malloc(node->st.st_size + size);
+	 	if (tmp) {
+	 		if (node->data) {
+	 			memcpy(tmp, node->data, node->st.st_size);
+	 			free(node->data);
+	 		}
+	 		node->data = tmp;
+	 		node->st.st_size += size;
+	 	}
+	 	else{
+	 		free(tmp);
+	 		return -EFBIG;
 	 }
-	 else
-	 	size = 0;
 	 printf("hello_write end");
 	 return size;
+	}
 }
-
 static int hello_mkdir(const char *path, mode_t mode)
 {
- 	printf("hello_mkdir");
+	time_t	current_time = time(NULL);
+	inode*	parent;
+	inode* 	node;
+	inode*	last_node;
+
+	char*	parent_path = find_parent(path);
+	int len = strlen(parent_path);
+	int i;
+
+	printf("hello_mkdir");
+
+
+	parent = find_path(parent_path);
+
+	if (parent == NULL)
+		return -ENOENT;
+
+	node->st.st_nlink = 2;
+	node->st.st_mode = mode | S_IFDIR;
+	node->st.st_mtime = current_time;
+	node->st.st_ctime = current_time;
+	node->st.st_atime = current_time;
+	node->child = NULL;
+	node->next = NULL;
+
+	node->name = (char*)calloc(MAX_NAME_LEN, sizeof(char));
+
+	for( i = len ; path[i] != '\0' ; i++ )
+		node->name[i-len] = path[i];
+	node->name[i-len] = '\0';
+
+	if(parent->child == NULL){
+		parent->child = node;
+		node->before = NULL;
+	}
+	else {
+		for(last_node = parent->child; last_node->next != NULL;
+			last_node = last_node->next);
+		last_node->next = node;
+		node->before = last_node;
+	}
+
 	printf("hello_mkdir end");
+	return 0;
 }
 
 static int hello_rmdir(const char *path)
 {
+	inode* node;
+	node = find_path(path);
+
  	printf("hello_rmdir");
+
+	if (node == root_node ||
+		((node->st.st_mode & S_IFDIR) && ( node->child )) )
+		return -EISDIR;
+	if(node == node->parent->child){
+		if(node->next)
+			node->next->before = NULL;
+		node->parent->child = node->next;
+		if(node->data)
+			free(node->data);
+		free(node->name);
+		free(node);
+	}
+	else {
+		node->before->next = node->next;
+		if(node->next)
+			node->next->before = node->before;
+		if(node->data)
+			free(node->data);
+		free(node->name);
+		free(node);
+	}
 	printf("hello_rmdir end");
+	return 0;
 }
 
 static int hello_mknod(const char *path, mode_t mode)
 {
- 	printf("hello_mknod");
+ 		time_t	current_time = time(NULL);
+		inode*	parent;
+		inode* 	node;
+		inode*	last_node;
+
+		char*	parent_path = find_parent(path);
+		int len = strlen(parent_path);
+		int i;
+
+		printf("hello_mknod");
+
+
+		parent = find_path(parent_path);
+
+		if (parent == NULL)
+			return -ENOENT;
+
+		node->st.st_nlink = 1;
+		node->st.st_mode = mode;
+		node->st.st_mtime = current_time;
+		node->st.st_ctime = current_time;
+		node->st.st_atime = current_time;
+		node->child = NULL;
+		node->next = NULL;
+
+		node->name = (char*)calloc(MAX_NAME_LEN, sizeof(char));
+
+		for( i = len ; path[i] != '\0' ; i++ )
+			node->name[i-len] = path[i];
+		node->name[i-len] = '\0';
+
+		if(parent->child == NULL){
+			parent->child = node;
+			node->before = NULL;
+		}
+		else {
+			for(last_node = parent->child; last_node->next != NULL;
+				last_node = last_node->next);
+			last_node->next = node;
+			node->before = last_node;
+		}
 	printf("hello_mknod end");
+	return 0;
 }
 
 static int hello_unlink(const char *path)
 {
- 	printf("hello_unlink");
-	printf("hello_unlink end");
+	inode* node;
+	node = find_path(path);
+
+ 	printf("hello_rmdir");
+
+	if (node == root_node ||
+		((node->st.st_mode & S_IFDIR) && ( node->child )) )
+		return -EISDIR;
+
+	if(node == node->parent->child){
+		if(node->next)
+			node->next->before = NULL;
+		node->parent->child = node->next;
+		if(node->data)
+			free(node->data);
+		free(node->name);
+		free(node);
+	}
+	else {
+		node->before->next = node->next;
+		if(node->next)
+			node->next->before = node->before;
+		if(node->data)
+			free(node->data);
+		free(node->name);
+		free(node);
+	}
 }
 static int hello_truncate(const char* path, off_t s)
 {
@@ -201,9 +370,19 @@ static int hello_truncate(const char* path, off_t s)
 }
 static int hello_utimens(const char *path, const struct timespec ts[2])
 {
+	inode* node = find_path(path);
+	time_t current_time = time(NULL);
+
 	printf("hello_utimens");
+
+	if(node == NULL)
+		return -ENOENT;
+	node->st.st_mtime = current_time;
+	node->st.st_atime = current_time;
+
 	printf("hello_utimens end");
 }
+
 static struct fuse_operations hello_oper = {
 		.init		= hello_init,
 		.getattr	= hello_getattr,
